@@ -8,7 +8,7 @@ Use the current stable version here:
 
 [Open latest dump](latest/DUMP_current.html)
 
-Current stable source: `2026-07-13_1307-New-CI.html`
+Current stable source: `2026-07-28_1307-New-CI-with-NS-BC.html`
 
 ## Version Archive
 
@@ -34,8 +34,9 @@ Older snapshots are kept in `versions/` so the root of the repo stays clean whil
 | 2026-07-08 | [0807](versions/2026-07-08_0807.html) | July 8 version |
 | 2026-07-09 | [0907](versions/2026-07-09_0907.html) | July 9 version |
 | 2026-07-09 | [0907 bold VLAN](versions/2026-07-09_0907-bold-VLAN.html) | Bold VLAN variant |
-| 2026-07-13 | [1307 New CI](versions/2026-07-13_1307-New-CI.html) | Current stable source |
+| 2026-07-13 | [1307 New CI](versions/2026-07-13_1307-New-CI.html) | Previous stable source |
 | 2026-07-13 | [1307 old CI](versions/2026-07-13_1307-old-CI.html) | Previous CI variant |
+| 2026-07-28 | [1307 New CI with NS BC](versions/2026-07-28_1307-New-CI-with-NS-BC.html) | Current stable source with NCP-NS and NCP-BC banks |
 
 ## Upgrade Workflow
 
