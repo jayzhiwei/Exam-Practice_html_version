@@ -3880,16 +3880,17 @@ function renderQuestion() {
   });
   syncKeyboardOptionCursor();
   var note = byId('answerNote');
+  var noteText = '';
   if (!done) {
     if (req === 1) {
-      note.textContent = selected.length === 1
+      noteText = selected.length === 1
         ? 'Ready to submit.'
         : 'Select an answer, then submit.';
     } else {
-      note.textContent = selected.length + ' / ' + req + ' selected. Select exactly ' + req + ' answers to submit.';
+      noteText = selected.length + ' / ' + req + ' selected. Select exactly ' + req + ' answers to submit.';
     }
   } else if (studyReveal) {
-    note.textContent = 'Study Mode - correct answer is shown.';
+    noteText = 'Study Mode - correct answer is shown.';
   } else if (isReviewUnanswered) {
     note.textContent = 'Unanswered — correct answer is displayed.';
   } else if (reviewReveal) {
@@ -3897,6 +3898,7 @@ function renderQuestion() {
   } else {
     note.textContent = '';
   }
+  note.innerHTML = escHtml(noteText || note.textContent || '') + (done ? formatQuestionAnswerDiagrams(q) : '');
   byId('backBtn').disabled = index === 0;
   var skip = byId('skipBtn');
   if (studyReveal) {
@@ -5725,11 +5727,11 @@ function buildExamSummary(summaryQuestions, summaryAnsweredMap, summaryResultMap
             '<span class="summary-status ' + statusCls + '">' + escHtml(statusText) + '</span>' +
           '</span>' +
           '<div class="summary-question" style="margin:4px 0 3px;">' + formatSummaryQuestionWithDiagram(q) + '</div>' +
-          '<span class="summary-correct" style="margin:13px 0 0px;"><strong>Correct: </strong>' + buildSummaryCorrectPreview(q) + '</span>' +
+          '<span class="summary-correct" style="margin:13px 0 0px;"><strong>Correct: </strong>' + buildSummaryCorrectPreview(q) + formatSummaryAnswerDiagrams(q) + '</span>' +
         '</span>' +
         '<span class="summary-arrow">›</span>' +
       '</button>' +
-      '<div class="summary-options">' + buildSummaryOptionsWithSelected(q, key, sMap) + '</div>' +
+      '<div class="summary-options">' + buildSummaryOptionsWithSelected(q, key, sMap) + formatSummaryAnswerDiagrams(q) + '</div>' +
     '</div>';
   }
 
@@ -6805,61 +6807,195 @@ function formatQuestionText(text){
   return formatRichText(text);
 }
 
-function diagramHtml(q, cls){
-  if(!q || !q.diagram) return '';
-  var src = String(q.diagram || '');
-  if(!/^data:image\//.test(src)) return '';
-  return '<div class="' + (cls || 'question-diagram') + '">' +
-    '<img src="' + escHtml(src) + '" alt="Question exhibit">' +
-    '</div>';
+function getDiagramSrc(item){
+  if(item == null) return '';
+  if(typeof item === 'string') return item;
+  if(typeof item !== 'object') return '';
+  return item.src || item.url || item.data || item.image || item.diagram || '';
 }
 
-function getDiagramKeywords(q){
-  var keywords = [];
-  if(q && q.diagramKeyword != null) keywords.push(String(q.diagramKeyword).trim());
-  if(q && Array.isArray(q.diagramKeywords)){
-    q.diagramKeywords.forEach(function(keyword){
-      if(keyword != null) keywords.push(String(keyword).trim());
-    });
-  }
-  keywords.push('[[diagram]]');
-  return keywords.filter(function(keyword, idx){
-    return keyword && keywords.indexOf(keyword) === idx;
+function uniqueList(items){
+  var seen = {};
+  return items.filter(function(item){
+    item = String(item || '').trim();
+    if(!item || seen[item]) return false;
+    seen[item] = true;
+    return true;
   });
 }
 
-function insertDiagramAtKeyword(text, diagram, formatter, keywords){
-  for(var i = 0; i < keywords.length; i++){
-    var keyword = keywords[i];
-    var markerAt = text.indexOf(keyword);
-    if(markerAt < 0) continue;
-    var before = text.slice(0, markerAt).replace(/\s+$/, '');
-    var after = text.slice(markerAt + keyword.length).replace(/^\s+/, '');
-    return (before ? formatter(before) : '') + diagram + (after ? formatter(after) : '');
+function getEntryKeywords(item, defaults){
+  var keywords = [];
+  if(item && typeof item === 'object'){
+    if(item.keyword != null) keywords.push(item.keyword);
+    if(item.diagramKeyword != null) keywords.push(item.diagramKeyword);
+    if(Array.isArray(item.keywords)) keywords = keywords.concat(item.keywords);
+    if(Array.isArray(item.diagramKeywords)) keywords = keywords.concat(item.diagramKeywords);
   }
-  return '';
+  return uniqueList(keywords.concat(defaults || []));
 }
 
-function formatTextWithDiagram(q, formatter, cls){
-  var text = String((q && q.question) || '');
-  var diagram = diagramHtml(q, cls);
-  if(!diagram) return formatter(text);
-  var keywordHtml = insertDiagramAtKeyword(text, diagram, formatter, getDiagramKeywords(q));
-  if(keywordHtml) return keywordHtml;
-  var match = text.match(/Refer to (?:the )?exhibit[\.:]?/i);
-  if(!match) return formatter(text) + diagram;
-  var splitAt = match.index + match[0].length;
-  var before = text.slice(0, splitAt).replace(/\s+$/, '');
-  var after = text.slice(splitAt).replace(/^\s+/, '');
-  return formatter(before) + diagram + (after ? formatter(after) : '');
+function normalizeDiagramEntry(item, defaults, alt){
+  var src = String(getDiagramSrc(item) || '');
+  if(!/^data:image\//.test(src)) return null;
+  return {
+    src: src,
+    alt: (item && typeof item === 'object' && item.alt) ? String(item.alt) : alt,
+    keywords: getEntryKeywords(item, defaults)
+  };
+}
+
+function diagramEntryHtml(entry, cls){
+  if(!entry || !entry.src) return '';
+  return '<div class="' + (cls || 'question-diagram') + '">' +
+    '<img src="' + escHtml(entry.src) + '" alt="' + escHtml(entry.alt || 'Question exhibit') + '">' +
+    '</div>';
+}
+
+function getQuestionDiagramEntries(q){
+  var entries = [];
+  if(q && q.diagram){
+    var singleKeywords = [];
+    if(q.diagramKeyword != null) singleKeywords.push(q.diagramKeyword);
+    if(Array.isArray(q.diagramKeywords)) singleKeywords = singleKeywords.concat(q.diagramKeywords);
+    singleKeywords.push('[[diagram]]');
+    var single = normalizeDiagramEntry(q.diagram, singleKeywords, 'Question exhibit');
+    if(single) entries.push(single);
+  }
+  if(q && Array.isArray(q.diagrams)){
+    q.diagrams.forEach(function(item, idx){
+      var defaults = ['[[diagram' + (idx + 1) + ']]'];
+      if(idx === 0 && !q.diagram) defaults.push('[[diagram]]');
+      var entry = normalizeDiagramEntry(item, defaults, 'Question exhibit');
+      if(entry) entries.push(entry);
+    });
+  }
+  return entries;
+}
+
+function getAnswerDiagramEntries(q){
+  var entries = [];
+  if(q && q.answerDiagram){
+    var answerSingle = normalizeDiagramEntry(q.answerDiagram, ['[[answerDiagram]]', '[[answer-diagram]]'], 'Answer exhibit');
+    if(answerSingle) entries.push(answerSingle);
+  }
+  if(q && q.answerKeyDiagram){
+    var answerKeySingle = normalizeDiagramEntry(q.answerKeyDiagram, ['[[answerKeyDiagram]]', '[[answer-key-diagram]]'], 'Answer exhibit');
+    if(answerKeySingle) entries.push(answerKeySingle);
+  }
+  var lists = [];
+  if(q && Array.isArray(q.answerDiagrams)) lists = lists.concat(q.answerDiagrams);
+  if(q && Array.isArray(q.answerKeyDiagrams)) lists = lists.concat(q.answerKeyDiagrams);
+  lists.forEach(function(item, idx){
+    var defaults = ['[[answerDiagram' + (idx + 1) + ']]', '[[answer-diagram' + (idx + 1) + ']]'];
+    if(idx === 0 && !q.answerDiagram) defaults.push('[[answerDiagram]]', '[[answer-diagram]]');
+    var entry = normalizeDiagramEntry(item, defaults, 'Answer exhibit');
+    if(entry) entries.push(entry);
+  });
+  return entries;
+}
+
+function findKeywordMatch(text, keywords){
+  var best = null;
+  keywords.forEach(function(keyword){
+    var at = text.indexOf(keyword);
+    if(at >= 0 && (!best || at < best.index)) best = { index: at, keyword: keyword };
+  });
+  return best;
+}
+
+function insertHtmlIntoChunks(chunks, keywords, html){
+  for(var i = 0; i < chunks.length; i++){
+    if(chunks[i].type !== 'text') continue;
+    var match = findKeywordMatch(chunks[i].value, keywords);
+    if(!match) continue;
+    var before = chunks[i].value.slice(0, match.index).replace(/\s+$/, '');
+    var after = chunks[i].value.slice(match.index + match.keyword.length).replace(/^\s+/, '');
+    chunks.splice(i, 1,
+      { type: 'text', value: before },
+      { type: 'html', value: html },
+      { type: 'text', value: after }
+    );
+    return true;
+  }
+  return false;
+}
+
+function insertHtmlAfterExhibit(chunks, html){
+  for(var i = 0; i < chunks.length; i++){
+    if(chunks[i].type !== 'text') continue;
+    var match = chunks[i].value.match(/Refer to (?:the )?exhibit[\.:]?/i);
+    if(!match) continue;
+    var splitAt = match.index + match[0].length;
+    var before = chunks[i].value.slice(0, splitAt).replace(/\s+$/, '');
+    var after = chunks[i].value.slice(splitAt).replace(/^\s+/, '');
+    chunks.splice(i, 1,
+      { type: 'text', value: before },
+      { type: 'html', value: html },
+      { type: 'text', value: after }
+    );
+    return true;
+  }
+  return false;
+}
+
+function renderDiagramChunks(chunks, formatter){
+  return chunks.map(function(chunk){
+    return chunk.type === 'html' ? chunk.value : (chunk.value ? formatter(chunk.value) : '');
+  }).join('');
+}
+
+function formatTextWithDiagramEntries(text, entries, formatter, cls){
+  text = String(text || '');
+  entries = entries || [];
+  if(!entries.length) return formatter(text);
+
+  var chunks = [{ type: 'text', value: text }];
+  var used = {};
+
+  entries.forEach(function(entry, idx){
+    if(!entry.keywords || !entry.keywords.length) return;
+    if(insertHtmlIntoChunks(chunks, entry.keywords, diagramEntryHtml(entry, cls))) used[idx] = true;
+  });
+
+  var unusedHtml = entries.map(function(entry, idx){
+    return used[idx] ? '' : diagramEntryHtml(entry, cls);
+  }).join('');
+
+  if(unusedHtml){
+    if(!insertHtmlAfterExhibit(chunks, unusedHtml)) chunks.push({ type: 'html', value: unusedHtml });
+  }
+
+  return renderDiagramChunks(chunks, formatter);
+}
+
+function getAnswerDiagramText(q){
+  return String((q && (q.answerKeyText || q.answerExplanation || q.explanation)) || '');
+}
+
+function formatAnswerKeyWithDiagrams(q, formatter, cls){
+  var entries = getAnswerDiagramEntries(q);
+  if(!entries.length) return '';
+  var text = getAnswerDiagramText(q);
+  return text
+    ? formatTextWithDiagramEntries(text, entries, formatter, cls)
+    : entries.map(function(entry){ return diagramEntryHtml(entry, cls); }).join('');
 }
 
 function formatQuestionWithDiagram(q){
-  return formatTextWithDiagram(q, formatQuestionText, 'question-diagram');
+  return formatTextWithDiagramEntries((q && q.question) || '', getQuestionDiagramEntries(q), formatQuestionText, 'question-diagram');
 }
 
 function formatSummaryQuestionWithDiagram(q){
-  return formatTextWithDiagram(q, formatRichText, 'summary-diagram');
+  return formatTextWithDiagramEntries((q && q.question) || '', getQuestionDiagramEntries(q), formatRichText, 'summary-diagram');
+}
+
+function formatQuestionAnswerDiagrams(q){
+  return formatAnswerKeyWithDiagrams(q, formatRichText, 'question-diagram');
+}
+
+function formatSummaryAnswerDiagrams(q){
+  return formatAnswerKeyWithDiagrams(q, formatRichText, 'summary-diagram');
 }
 
 </script>
