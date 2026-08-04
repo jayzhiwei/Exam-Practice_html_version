@@ -6,7 +6,13 @@ A public archive of standalone HTML exam-practice dumps.
 
 Use the current stable version here:
 
-[Open latest dump](latest/DUMP_current.html)
+[Open latest dump in GitHub](latest/DUMP_current.html)
+
+## Live Preview
+
+Open the latest practice dump as a live page:
+
+[Open Latest Practice Dump](https://jayzhiwei.github.io/Exam-Practice_html_version/latest/DUMP_current.html)
 
 Current stable source: `2026-07-29_2907.html`
 
