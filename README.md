@@ -14,7 +14,7 @@ Open the latest practice dump as a live page:
 
 [Open Latest Practice Dump](https://jayzhiwei.github.io/Exam-Practice_html_version/latest/DUMP_current.html)
 
-Current stable source: `2026-07-29_2907.html`
+Current stable source: `2026-08-04_2907-multi-diagrams.html`
 
 ## Version Archive
 
@@ -43,7 +43,8 @@ Older snapshots are kept in `versions/` so the root of the repo stays clean whil
 | 2026-07-13 | [1307 New CI](versions/2026-07-13_1307-New-CI.html) | Previous stable source |
 | 2026-07-13 | [1307 old CI](versions/2026-07-13_1307-old-CI.html) | Previous CI variant |
 | 2026-07-28 | [1307 New CI with NS BC](versions/2026-07-28_1307-New-CI-with-NS-BC.html) | Stable source with NCP-NS and NCP-BC banks |
-| 2026-07-29 | [2907](versions/2026-07-29_2907.html) | Current stable source |
+| 2026-07-29 | [2907](versions/2026-07-29_2907.html) | Previous stable source |
+| 2026-08-04 | [2907 multi diagrams](versions/2026-08-04_2907-multi-diagrams.html) | Current stable source with multiple question and answer-key diagrams |
 
 ## Upgrade Workflow
 
